@@ -105,6 +105,10 @@ ALL_COLLECTIONS = [REPT_COLLECTION] + [c for _, c, _ in STATIC_TABS]
 START_DATE = os.getenv("START_DATE", "01-01-1960")  # dd-mm-yyyy
 END_DATE   = os.getenv("END_DATE",   date.today().strftime("%d-%m-%Y"))
 
+# Set REPT_ONLY=1 to scrape ONLY the Rept. Judgment/Order tab (skip the three
+# static tabs: F.B. Judgment, D.B. Ref. Judgments, F.B. Orders).
+REPT_ONLY  = os.getenv("REPT_ONLY", "0") == "1"
+
 MIN_DELAY, MAX_DELAY = 2.0, 5.0
 JSON_FILE = "bhc_judgments.json"
 
@@ -516,20 +520,12 @@ def _total_from_results_info(payload) -> int:
 def iter_listings(session):
     """
     Yield (collection, judgment_type, docs) for every listing, using `session`
-    so any pdf_url in `docs` is fresh and downloadable right away. Static tabs
-    first, then the Rept. date-range windows (each window fully paginated).
-    """
-    # ── Static tabs: one GET each ──
-    for url, collection, jtype in STATIC_TABS:
-        payload = get_json(session, url, method="GET")
-        if payload is None:
-            log.warning(f"[{jtype}]  request failed")
-            continue
-        docs = parse_page_html(payload.get("page", ""), jtype, collection)
-        log.info(f"[{jtype}]  {len(docs):,} records found")
-        yield collection, jtype, docs
-        sleep_politely()
+    so any pdf_url in `docs` is fresh and downloadable right away.
 
+    The Rept. date-range windows are yielded FIRST so this date-driven tab is
+    never starved by the large static tabs (F.B. Orders alone has ~1,700 PDFs)
+    or cut off mid-run by LIMIT. The three single-GET static tabs follow.
+    """
     # ── Rept. Judgment/Order: POST per monthly window, paginate ──
     log.info("=" * 55)
     log.info("Scraping: Rept. Judgment/Order (server-side pagination)")
@@ -577,6 +573,22 @@ def iter_listings(session):
         # identical-metadata duplicates straddle a page boundary.
         window_docs = assign_uids(window_docs, REPT_COLLECTION)
         yield REPT_COLLECTION, "Rept. Judgment/Order", window_docs
+        sleep_politely()
+
+    if REPT_ONLY:
+        log.info("REPT_ONLY set — skipping static tabs "
+                 "(F.B. Judgment, D.B. Ref., F.B. Orders).")
+        return
+
+    # ── Static tabs: one GET each ──
+    for url, collection, jtype in STATIC_TABS:
+        payload = get_json(session, url, method="GET")
+        if payload is None:
+            log.warning(f"[{jtype}]  request failed")
+            continue
+        docs = parse_page_html(payload.get("page", ""), jtype, collection)
+        log.info(f"[{jtype}]  {len(docs):,} records found")
+        yield collection, jtype, docs
         sleep_politely()
 
 
