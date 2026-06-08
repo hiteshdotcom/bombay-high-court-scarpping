@@ -1,0 +1,30 @@
+[Unit]
+Description=Bombay High Court Judgment Scraper (Rept. Judgment/Order)
+# Wait for the network to be up before starting.
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+# >>> EDIT THIS if you put the project somewhere other than /home/ubuntu/bhc <<<
+WorkingDirectory=/home/ubuntu/bhc
+# Use the venv's python so dependencies resolve.
+ExecStart=/home/ubuntu/bhc/.venv/bin/python3 /home/ubuntu/bhc/bhc_scrapling.py
+
+# ── Continuous run with a cool-down ──────────────────────────────────────────
+# When the script finishes (or crashes), systemd waits RestartSec, then
+# launches it again — giving you a perpetual loop with a fixed cool-down.
+Restart=always
+RestartSec=3600          # cool-down between runs, in seconds (3600 = 1 hour)
+
+# Don't give up after repeated quick failures (e.g. transient network errors).
+StartLimitIntervalSec=0
+
+# systemd captures the script's console output to the journal.
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=bhc-scraper
+
+[Install]
+WantedBy=multi-user.target

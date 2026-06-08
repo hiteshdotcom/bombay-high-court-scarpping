@@ -1,0 +1,14 @@
+# Rotates the scraper's own log file (bhc_scrapling.log).
+# Install to: /etc/logrotate.d/bhc-scraper
+# >>> EDIT the path if your project is not in /home/ubuntu/bhc <<<
+/home/ubuntu/bhc/bhc_scrapling.log {
+    daily              # rotate once a day
+    rotate 14          # keep 14 days of history
+    compress           # gzip old logs
+    delaycompress      # keep the most recent rotation uncompressed
+    missingok          # don't error if the log is absent
+    notifempty         # skip rotation when empty
+    copytruncate       # IMPORTANT: copy then truncate in place, so the long-
+                       # running python process keeps writing to the same file
+                       # without needing a restart.
+}
