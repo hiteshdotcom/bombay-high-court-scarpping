@@ -102,6 +102,10 @@ STATIC_TABS = [
 REPT_COLLECTION = "rept_judgments"
 ALL_COLLECTIONS = [REPT_COLLECTION] + [c for _, c, _ in STATIC_TABS]
 
+# Windows whose pagination was cut short by a failed page (HTTP 500 etc.).
+# Surfaced at the end of the run so incomplete date ranges are auditable.
+INCOMPLETE_WINDOWS: list = []
+
 START_DATE = os.getenv("START_DATE", "01-01-1960")  # dd-mm-yyyy
 END_DATE   = os.getenv("END_DATE",   date.today().strftime("%d-%m-%Y"))
 
@@ -326,8 +330,13 @@ def parse_page_html(page_html: str, judgment_type: str, collection: str) -> list
 
 # ─── HTTP helpers (Scrapling) ────────────────────────────────────────────────
 
-def get_json(session, url, method="GET", data=None, retries=3):
-    """Call an AJAX endpoint and return its parsed JSON dict, or None."""
+def get_json(session, url, method="GET", data=None, retries=6):
+    """Call an AJAX endpoint and return its parsed JSON dict, or None.
+
+    Retries with exponential backoff (capped) because the BHC server throws
+    intermittent HTTP 500s under load; giving up too early silently drops
+    whole pages of results.
+    """
     for attempt in range(1, retries + 1):
         try:
             resp = session.post(url, data=data) if method == "POST" else session.get(url)
@@ -337,7 +346,8 @@ def get_json(session, url, method="GET", data=None, retries=3):
         except Exception as e:
             log.warning(f"  Attempt {attempt}/{retries} failed for {url}: {e}")
             if attempt < retries:
-                time.sleep(attempt * 4)
+                # 5, 10, 20, 40, 60, 60 ... seconds
+                time.sleep(min(60, 5 * 2 ** (attempt - 1)))
     return None
 
 
@@ -549,7 +559,14 @@ def iter_listings(session):
             url = ADVOCATENAME_URL if page == 1 else f"{ADVOCATENAME_URL}?page={page}"
             data = get_json(session, url, method="POST", data=payload)
             if data is None:
-                log.warning(f"  POST failed for {from_str}->{to_str} (page {page})")
+                got = len(window_docs)
+                exp = total_records if total_records is not None else "?"
+                log.error(f"  POST failed for {from_str}->{to_str} (page {page}); "
+                          f"window INCOMPLETE — saved {got}/{exp}. "
+                          f"Re-run will backfill (idempotent upsert).")
+                INCOMPLETE_WINDOWS.append(
+                    {"from": from_str, "to": to_str, "failed_page": page,
+                     "saved": got, "expected": total_records})
                 break
             if data.get("status") is False:
                 if data.get("error"):
@@ -655,6 +672,15 @@ def main():
     if db is not None:
         for col in ALL_COLLECTIONS:
             log.info(f"  MongoDB [{col}]:  {db[col].count_documents({}):,} documents")
+    if INCOMPLETE_WINDOWS:
+        log.warning("=" * 55)
+        log.warning(f"  {len(INCOMPLETE_WINDOWS)} window(s) were INCOMPLETE "
+                    f"(a page failed mid-pagination):")
+        for w in INCOMPLETE_WINDOWS:
+            log.warning(f"    {w['from']} -> {w['to']}: saved {w['saved']}/"
+                        f"{w['expected']} (failed on page {w['failed_page']})")
+        log.warning("  Re-run the scraper to backfill these ranges "
+                    "(upserts are idempotent).")
     log.info("=" * 55)
 
 

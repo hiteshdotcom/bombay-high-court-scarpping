@@ -3,14 +3,14 @@
 Continuous loop with a cool-down between runs, via **systemd**, plus
 **logrotate** for the log file. AWS auth uses the keys already in `.env`.
 
-Assumes the project lives at `/home/ubuntu/bhc`. If it's elsewhere, edit the
+Assumes the project lives at `/home/ubuntu/bombay-high-court-scarpping`. If it's elsewhere, edit the
 two paths in `bhc-scraper.service` and `bhc-scraper.logrotate` first.
 
 ## 1. One-time setup on the server
 
 ```bash
 sudo apt update && sudo apt install -y python3 python3-venv python3-pip
-cd ~/bhc
+cd ~/bombay-high-court-scarpping
 python3 -m venv .venv
 source .venv/bin/activate
 pip install --upgrade pip
@@ -35,7 +35,7 @@ python3 bhc_scrapling.py
 ## 2. Install the systemd service (the continuous loop + cool-down)
 
 ```bash
-sudo cp ~/bhc/deploy/bhc-scraper.service /etc/systemd/system/
+sudo cp ~/bombay-high-court-scarpping/deploy/bhc-scraper.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now bhc-scraper.service
 ```
@@ -47,7 +47,7 @@ change it to whatever you want and re-run `daemon-reload` + `restart`.
 ## 3. Install log rotation
 
 ```bash
-sudo cp ~/bhc/deploy/bhc-scraper.logrotate /etc/logrotate.d/bhc-scraper
+sudo cp ~/bombay-high-court-scarpping/deploy/bhc-scraper.logrotate /etc/logrotate.d/bhc-scraper
 sudo logrotate --debug /etc/logrotate.d/bhc-scraper   # dry-run to validate
 ```
 
@@ -55,7 +55,7 @@ sudo logrotate --debug /etc/logrotate.d/bhc-scraper   # dry-run to validate
 
 ```bash
 # live application log (the file the script writes)
-tail -f ~/bhc/bhc_scrapling.log
+tail -f ~/bombay-high-court-scarpping/bhc_scrapling.log
 
 # live service output via journald (includes restarts/cool-downs)
 journalctl -u bhc-scraper -f

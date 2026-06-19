@@ -1,7 +1,7 @@
 # Rotates the scraper's own log file (bhc_scrapling.log).
 # Install to: /etc/logrotate.d/bhc-scraper
-# >>> EDIT the path if your project is not in /home/ubuntu/bhc <<<
-/home/ubuntu/bhc/bhc_scrapling.log {
+# >>> EDIT the path if your project is not in /home/ubuntu/bombay-high-court-scarpping <<<
+/home/ubuntu/bombay-high-court-scarpping/bhc_scrapling.log {
     daily              # rotate once a day
     rotate 14          # keep 14 days of history
     compress           # gzip old logs

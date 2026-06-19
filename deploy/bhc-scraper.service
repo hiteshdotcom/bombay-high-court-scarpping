@@ -7,10 +7,10 @@ Wants=network-online.target
 [Service]
 Type=simple
 User=ubuntu
-# >>> EDIT THIS if you put the project somewhere other than /home/ubuntu/bhc <<<
-WorkingDirectory=/home/ubuntu/bhc
+# >>> EDIT THIS if you put the project somewhere other than /home/ubuntu/bombay-high-court-scarpping <<<
+WorkingDirectory=/home/ubuntu/bombay-high-court-scarpping
 # Use the venv's python so dependencies resolve.
-ExecStart=/home/ubuntu/bhc/.venv/bin/python3 /home/ubuntu/bhc/bhc_scrapling.py
+ExecStart=/home/ubuntu/bombay-high-court-scarpping/.venv/bin/python3 /home/ubuntu/bombay-high-court-scarpping/bhc_scrapling.py
 
 # ── Continuous run with a cool-down ──────────────────────────────────────────
 # When the script finishes (or crashes), systemd waits RestartSec, then
